@@ -1,0 +1,72 @@
+Keystone Packet DMA Controller
+
+This document explains the device tree bindings for the packet dma
+on keystone devices. The the Network coprocessor, Cypto engines
+and the SRIO on Keystone devices all have their own packet dma modules.
+Each individual packet dma has a certain number of RX channels,
+RX flows and TX channels. Each instance of the packet DMA is being
+initialized through device specific bindings.
+
+* DMA controller
+
+Required properties:
+ - compatible: Should be "ti,keystone-pktdma"
+ - reg: Should contain register location and length of the following pktdma
+	register regions. The value for "reg-names" property of the respective
+	region is specified in parenthesis.
+	- Global control register region (global).
+	- Tx DMA channel configuration register region (txchan).
+	- Rx DMA channel configuration register region (rxchan).
+	- Tx DMA channel Scheduler configuration register region (txsched).
+	- Rx DMA flow configuration register region (rxflow).
+ - reg-names: Names for the above regions. The name to be used is specified in
+	      the above description of "reg" property.
+ - qm-base-address: Base address of the logical queue managers for pktdma.
+ - #dma-cells: Has to be 1. Keystone-pktdma doesn't support anything else.
+
+Optional properties:
+ - enable-all: Enable all DMA channels.
+ - loop-back: To loopback Tx streaming I/F to Rx streaming I/F. Used for
+	      infrastructure transfers.
+ - rx-retry-timeout: Number of pktdma cycles to wait before retry on buffer
+		     starvation.
+
+Example:
+	netcp-dma: pktdma@2004000 {
+		compatible = "ti,keystone-pktdma";
+		reg =	<0x2004000 0x100>,
+			<0x2004400 0x120>,
+			<0x2004800 0x300>,
+			<0x2004c00 0x120>,
+			<0x2005000 0x400>;
+		reg-names = "global", "txchan", "rxchan", "txsched",
+			     "rxflow";
+		qm-base-address = <0x23a80000 0x23a90000
+				   0x23aa0000 0x23ab0000>;
+		#dma-cells = <1>;
+		/* enable-all; */
+		rx-retry-timeout = <3500>;
+		/* loop-back; */
+	};
+
+
+* DMA client
+
+Required properties:
+- dmas: One DMA request specifier consisting of a phandle to the DMA controller
+	followed by the integer specifying the channel identifier. The channel
+	identifier is encoded as follows:
+	- bits 7-0: Tx DMA channel number or the Rx flow number.
+	- bits 31-24: Channel type. 0xff for Tx DMA channel & 0xfe for Rx flow.
+- dma-names: List of string identifiers for the DMA requests.
+
+Example:
+
+	netcp: netcp@2090000 {
+		...
+		dmas =	<&netcpdma KEYSTONE_DMA_RX_FLOW(22)>,
+			<&netcpdma KEYSTONE_DMA_RX_FLOW(23)>,
+			<&netcpdma KEYSTONE_DMA_TX_CHAN(8)>;
+			dma-names = "netrx0", "netrx1", "nettx";
+		...
+	};

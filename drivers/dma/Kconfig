@@ -350,6 +350,14 @@ config MOXART_DMA
 	help
 	  Enable support for the MOXA ART SoC DMA controller.
 
+config KEYSTONE_PKTDMA
+	tristate "TI Keystone Packet DMA support"
+	depends on ARCH_KEYSTONE
+	select DMA_ENGINE
+	help
+	  Enable support for the Packet DMA engine on Texas Instruments'
+	  Keystone family of devices.
+
 config DMA_ENGINE
 	bool
 
