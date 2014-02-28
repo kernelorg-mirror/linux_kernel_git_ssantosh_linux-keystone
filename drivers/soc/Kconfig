@@ -1,3 +1,5 @@
 menu "SOC specific Drivers"
 
+source "drivers/soc/keystone/Kconfig"
+
 endmenu

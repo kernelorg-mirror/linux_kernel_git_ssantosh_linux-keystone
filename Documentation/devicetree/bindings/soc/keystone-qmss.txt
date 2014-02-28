@@ -1,0 +1,209 @@
+* Texas Instruments Keystone QMSS driver
+
+Required properties:
+- compatible	: Must be "ti,keystone-qmss";
+- clocks	: phandle to the reference clock for this device.
+- queue-range	: <start number> total range of queue numbers for the device.
+- linkram0	: <address size> for internal link ram, where size is the total
+		  link ram entries.
+- linkram1	: <address size> for external link ram, where size is the total
+		  external link ram entries. If the address is specified as "0"
+		  driver will allocate memory.
+- qmgrs         : the number of individual queue managers in the device. On
+                  keystone 1 range of devices there should be only one node.
+		  On keystone 2 devices there can be more than 1 node.
+  -- managed-queues	: the actual queues managed by each queue manager
+			  instance, specified as <"base queue #" "# of queues">.
+  -- reg		: Address and length of the register set for the device
+			  for peek, status, config, region, push, pop regions.
+  -- reg-names		: Names for the above register regions. The name to be
+			  used is as follows:
+			  - "config" : Queue configuration region.
+			  - "status" : Queue status RAM.
+			  - "region" : Descriptor memory setup region.
+			  - "push"   : Queue Management/Queue Proxy region.
+			  - "pop"    : Queue Management/Queue Proxy region.
+			  - "peek"   : Queue Peek region.
+- queue-pools	: Queue ranges are grouped into 3 type of pools:
+		  - qpend	    : pool of qpend(interruptible) queues
+		  - general-purpose : pool of general queues, primarly used
+				      as free descriptor queues or the
+				      transmit DMA queues.
+		  - accumulator	    : pool of queues on accumulator channel
+		  Each range can have the following properties:
+  -- values		: number of queues to use per queue range, specified as
+			  <"base queue #" "# of queues">.
+  -- interrupts		: Optional property to specify the interrupt mapping
+			  for interruptible queues. The driver additionaly sets
+			  the interrupt affinity based on the cpu mask.
+  -- reserved		: Optional property used to reserve the range. Queues
+			  in a reserved range can only be allocated by id.
+  -- accumulator	: Accumulator channel property specified as:
+			  <pdsp-id, channel, entries, pacing mode, latency>
+			  pdsp-id     : QMSS PDSP running accumulator firmware
+					on which the channel has to be
+					configured
+			  channel     : Accumulator channel number
+			  entries     : Size of the accumulator descriptor list
+			  pacing mode : Interrupt pacing mode
+					0 : None, i.e interrupt on list full
+					1 : Time delay since last interrupt
+					2 : Time delay since first new packet
+					3 : Time delay since last new packet
+			  latency     : time to delay the interrupt, specified
+					in microseconds.
+  -- multi-queue	: Optional property to specify that the channel has to
+			  monitor upto 32 queues starting at the base queue #.
+- descriptor-regions	: Descriptor memory region specification.
+  -- id				: region number.
+  -- values			: number of descriptors in the region,
+				  specified as
+				  <"# of descriptors" "descriptor size">.
+  -- link-index			: start index, i.e. index of the first
+				  descriptor in the region.
+
+Optional properties:
+- dma-coherent	: Present if DMA operations are coherent.
+- pdsps		: PDSP configuration, if any.
+  -- firmware		: firmware to be loaded on the PDSP.
+  -- id			: the qmss pdsp that will run the firmware.
+  -- reg		: Address and length of the register set of the PDSP
+			  for iram, intd, region, command regions.
+  -- reg-names		: Names for the above register regions. The name to be
+			  used is as follows:
+			  - "iram"   : PDSP internal RAM region.
+			  - "reg"    : PDSP control/status region registers.
+			  - "intd"   : QMSS interrupt distributor registers.
+			  - "cmd"    : PDSP command interface region.
+
+Example:
+
+qmss: qmss@2a40000 {
+	compatible = "ti,keystone-qmss";
+	dma-coherent;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	clocks = <&chipclk13>;
+	ranges;
+	queue-range	= <0 0x4000>;
+	linkram0	= <0x100000 0x8000>;
+	linkram1	= <0x0 0x10000>;
+
+	qmgrs {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		qmgr0 {
+			managed-queues = <0 0x2000>;
+			reg = <0x2a40000 0x20000>,
+			      <0x2a06000 0x400>,
+			      <0x2a02000 0x1000>,
+			      <0x2a03000 0x1000>,
+			      <0x2a80000 0x20000>,
+			      <0x2a80000 0x20000>;
+			reg-names = "peek", "status", "config",
+				    "region", "push", "pop";
+		};
+
+		qmgr1 {
+			managed-queues = <0x2000 0x2000>;
+			reg = <0x2a60000 0x20000>,
+			      <0x2a06400 0x400>,
+			      <0x2a04000 0x1000>,
+			      <0x2a05000 0x1000>,
+			      <0x2aa0000 0x20000>,
+			      <0x2aa0000 0x20000>;
+			reg-names = "peek", "status", "config",
+				    "region", "push", "pop";
+		};
+	};
+	queue-pools {
+		qpend {
+			qpend-0 {
+				values = <658 8>;
+				interrupts =<0 40 0xf04 0 41 0xf04 0 42 0xf04
+					     0 43 0xf04 0 44 0xf04 0 45 0xf04
+					     0 46 0xf04 0 47 0xf04>;
+			};
+			qpend-1 {
+				values = <8704 16>;
+				interrupts = <0 48 0xf04 0 49 0xf04 0 50 0xf04
+					      0 51 0xf04 0 52 0xf04 0 53 0xf04
+					      0 54 0xf04 0 55 0xf04 0 56 0xf04
+					      0 57 0xf04 0 58 0xf04 0 59 0xf04
+					      0 60 0xf04 0 61 0xf04 0 62 0xf04
+					      0 63 0xf04>;
+				reserved;
+			};
+			qpend-2 {
+				values = <8720 16>;
+				interrupts = <0 64 0xf04 0 65 0xf04 0 66 0xf04
+					      0 59 0xf04 0 68 0xf04 0 69 0xf04
+					      0 70 0xf04 0 71 0xf04 0 72 0xf04
+					      0 73 0xf04 0 74 0xf04 0 75 0xf04
+					      0 76 0xf04 0 77 0xf04 0 78 0xf04
+					      0 79 0xf04>;
+			};
+		};
+		general-purpose {
+			gp-0 {
+				values = <4000 64>;
+			};
+			netcp-tx {
+				values = <640 9>;
+				reserved;
+			};
+		};
+		accumulator {
+			acc-0 {
+				values = <128 32>;
+				accumulator = <0 36 16 2 50>;
+				interrupts = <0 215 0xf01>;
+				multi-queue;
+				reserved;
+			};
+			acc-1 {
+				values = <160 32>;
+				accumulator = <0 37 16 2 50>;
+				interrupts = <0 216 0xf01>;
+				multi-queue;
+			};
+			acc-2 {
+				values = <192 32>;
+				accumulator = <0 38 16 2 50>;
+				interrupts = <0 217 0xf01>;
+				multi-queue;
+			};
+			acc-3 {
+				values = <224 32>;
+				accumulator = <0 39 16 2 50>;
+				interrupts = <0 218 0xf01>;
+				multi-queue;
+			};
+		};
+	};
+	descriptor-regions {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		region-12 {
+			id = <12>;
+			values	= <8192 128>;	/* num_desc desc_size */
+			link-index = <0x4000>;
+		};
+	};
+	pdsps {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		pdsp0@0x2a10000 {
+			firmware = "keystone/qmss_pdsp_acc48_k2_le_1_0_0_8.fw";
+			reg = <0x2a10000 0x1000>,
+			      <0x2a0f000 0x100>,
+			      <0x2a0c000 0x3c8>,
+			      <0x2a20000 0x4000>;
+			reg-names = "iram", "reg", "intd", "cmd";
+			id = <0>;
+		};
+	};
+}; /* qmss */
