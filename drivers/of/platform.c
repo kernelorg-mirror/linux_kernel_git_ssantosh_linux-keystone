@@ -255,6 +255,11 @@ static void dt_dma_configure(struct device *dev)
 		dev_err(dev, "failed to set coherent DMA mask %pad\n",
 			&dma_mask);
 	}
+
+	if (of_dma_is_coherent(dev->of_node)) {
+		set_arch_dma_coherent_ops(dev);
+		dev_dbg(dev, "device is dma coherent\n");
+	}
 }
 
 /**
