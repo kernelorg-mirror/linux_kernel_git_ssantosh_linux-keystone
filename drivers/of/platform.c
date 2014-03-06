@@ -187,6 +187,77 @@ struct platform_device *of_device_alloc(struct device_node *np,
 EXPORT_SYMBOL(of_device_alloc);
 
 /**
+ * dt_dma_configure - apply default DMA configuration from dt
+ * @dev:	Device to apply DMA configuration
+ *
+ * Try to get devices's DMA configuration from DT and apply it.
+ * The DMA configuration is represented in DT by "dma-ranges" property.
+ * It configures:
+ *	dma_pfn_offset, dma_mask and coherent_dma_mask.
+ *
+ * In case if DMA configuration can't be acquired from DT the default one is
+ * applied:
+ *	dma_pfn_offset = 0,
+ *	dma_mask = DMA_BIT_MASK(32)
+ *	coherent_dma_mask = DMA_BIT_MASK(32).
+ *
+ * In case if platform code need to use own DMA configuration - it can use
+ * Platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE event to fix up
+ * DMA configuration.
+ */
+static void dt_dma_configure(struct device *dev)
+{
+	dma_addr_t dma_addr;
+	phys_addr_t paddr, size;
+	dma_addr_t dma_mask;
+	int ret;
+
+	/*
+	 * if dma-ranges property doesn't exist - use 32 bits DMA mask
+	 * by default and don't set skip archdata.dma_pfn_offset
+	 */
+	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
+	if (ret == -ENODEV) {
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+		if (!dev->dma_mask)
+			dev->dma_mask = &dev->coherent_dma_mask;
+		return;
+	}
+
+	/* if failed - disable DMA for device */
+	if (ret < 0) {
+		dev_err(dev, "failed to configure DMA\n");
+		return;
+	}
+
+	/* DMA ranges found. Calculate and set dma_pfn_offset */
+	dev->dma_pfn_offset = PFN_DOWN(paddr - dma_addr);
+
+	/* Configure DMA mask */
+	dev->dma_mask = &dev->coherent_dma_mask;
+	if (!dev->dma_mask)
+		return;
+
+	dma_mask = dma_addr + size - 1;
+
+	ret = dma_set_mask(dev, dma_mask);
+	if (ret < 0) {
+		dev_err(dev, "failed to set DMA mask %pad\n", &dma_mask);
+		dev->dma_mask = NULL;
+		return;
+	}
+
+	dev_dbg(dev, "dma_pfn_offset(%#08lx) dma_mask(%pad)\n",
+		dev->dma_pfn_offset, dev->dma_mask);
+
+	ret = dma_set_coherent_mask(dev, dma_mask);
+	if (ret < 0) {
+		dev_err(dev, "failed to set coherent DMA mask %pad\n",
+			&dma_mask);
+	}
+}
+
+/**
  * of_platform_device_create_pdata - Alloc, initialize and register an of_device
  * @np: pointer to node to create device for
  * @bus_id: name to assign device
@@ -214,9 +285,7 @@ static struct platform_device *of_platform_device_create_pdata(
 #if defined(CONFIG_MICROBLAZE)
 	dev->archdata.dma_mask = 0xffffffffUL;
 #endif
-	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	if (!dev->dev.dma_mask)
-		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
+	dt_dma_configure(&dev->dev);
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 
