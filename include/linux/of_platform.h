@@ -72,11 +72,19 @@ extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
 				struct device *parent);
+extern int of_dma_get_range(struct device_node *np, dma_addr_t *dma_addr,
+				phys_addr_t *paddr, phys_addr_t *size);
 #else
 static inline int of_platform_populate(struct device_node *root,
 					const struct of_device_id *matches,
 					const struct of_dev_auxdata *lookup,
 					struct device *parent)
+{
+	return -ENODEV;
+}
+
+static inline int of_dma_get_range(struct device_node *np, dma_addr_t *dma_addr,
+					phys_addr_t *paddr, phys_addr_t *size)
 {
 	return -ENODEV;
 }
