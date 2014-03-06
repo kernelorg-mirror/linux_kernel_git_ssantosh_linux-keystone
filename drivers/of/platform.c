@@ -570,4 +570,35 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_dma_get_range);
+
+/**
+ * of_dma_is_coherent - Check if device is coherent
+ * @np:	device node
+ *
+ * It returns true if "dma-coherent" property was found
+ * for this device in DT.
+ */
+#ifndef CONFIG_ARCH_IS_DMA_COHERENT
+bool of_dma_is_coherent(struct device_node *np)
+{
+	struct device_node *node = np;
+
+	while (node) {
+		if (of_property_read_bool(node, "dma-coherent")) {
+			of_node_put(node);
+			return true;
+		}
+		node = of_get_next_parent(node);
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(of_dma_is_coherent);
+#else
+inline bool of_dma_is_coherent(struct device_node *np)
+{
+	/* ARCH is fully dma coherent and don't need per device control */
+	return true;
+}
+EXPORT_SYMBOL_GPL(of_dma_is_coherent);
+#endif
 #endif /* CONFIG_OF_ADDRESS */
