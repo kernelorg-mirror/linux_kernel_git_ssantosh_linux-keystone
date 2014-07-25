@@ -194,7 +194,7 @@
 
 		knav_dmas: knav_dmas@0 {
 			compatible = "ti,keystone-navigator-dma";
-			clocks = <&papllclk>, <&clkxge>;
+			clocks = <&clkpa>, <&clkxge>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -230,7 +230,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&papllclk>, <&clkcpgmac>, <&chipclk12>;
+			clocks = <&clkpa>, <&clkcpgmac>, <&chipclk12>;
 			dma-coherent;
 			/* big-endian; */
 
